@@ -232,7 +232,9 @@
 
 - [LLM-推理-KV-壓縮與效能瓶頸.md](./LLM-推理-KV-壓縮與效能瓶頸.md)
 - [oMLX-系統架構模組圖.md](./oMLX-系統架構模組圖.md)
-- [JANG-vMLX-與-oMLX-模組圖比較.md](./JANG-vMLX-與-oMLX-模組圖比較.md)
+- [JANG-vMLX-與-oMLX-模組圖比較.md](./tech-evals/JANG-vMLX-與-oMLX-模組圖比較.md)
 - [TECH_EVAL_TEMPLATE.md](./TECH_EVAL_TEMPLATE.md)
+- [vllm-mtp-tech-eval.md](./tech-evals/vllm-mtp-tech-eval.md)
+- [vllm-feature-fit-analysis.md](./tech-evals/vllm-feature-fit-analysis.md)
 
 這份 README 的角色，是提供後續所有技術評估、架構設計與實作文件的總綱。
