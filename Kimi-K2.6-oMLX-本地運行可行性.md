@@ -281,7 +281,7 @@ K2.6 的 scheduler 不能只看 token/KV budget，還要看：
 - staging buffer occupancy
 - prefetch miss rate
 
-這會是 oMLX 和一般 vLLM-style scheduler 最大的差異之一。
+這會是 oMLX 和一般只看 token / KV block 的 serving scheduler 最大的差異之一。
 
 ---
 

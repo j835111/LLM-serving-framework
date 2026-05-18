@@ -2,6 +2,8 @@
 
 日期：2026-04-26
 
+> 2026-05-05 更新：此文件保留作為歷史 / 對照參考。新的整體規劃已改為承接現有 `oMLX` serving substrate；`vLLM / vllm-metal` 不再作為主骨架候選，只作 feature-level comparison 與設計語彙參考。
+
 這份文件的目的，不是再重複一次「vLLM 很強」，而是把 **vLLM / vllm-metal 目前已公開的特性**，放回本專案自己的目標來看：
 
 - Apple Silicon

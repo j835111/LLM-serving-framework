@@ -52,14 +52,14 @@
 
 本專案的定位更接近：
 
-- **控制平面（control plane）** 借鑑 `vLLM`
-- **執行路徑（execution path）** 以 `Metal-first runtime` 為核心
-- 在必要時直接實作或呼叫 **Metal API**
-- 以 **MoE 權重分層** 與 **KV 分層快取** 為兩條並列主線
+- **控制平面（control plane）** 承接現有 `oMLX` 的 API、EnginePool、continuous batching、paged SSD KV cache
+- **執行路徑（execution path）** 先以 `mlx-lm / MLX` 為 baseline，再針對熱點下探 **Metal**
+- 在必要時以 extension 方式實作 expert paging、MLA/DSA-aware KV/index 與 custom Metal kernels
+- 以 **oMLX serving substrate**、**MoE 權重分層**、**MLA / KV / Index 分層快取** 為三條並列主線
 
 換句話說，這個專案希望建立的是：
 
-> **一個面向 Apple Silicon、以記憶體分層與資料搬運效率為核心的大模型 serving 系統。**
+> **一個承接 oMLX 既有 serving 能力、再面向超大 MoE 與長 context 擴充 memory hierarchy 的 Apple Silicon serving 系統。**
 
 ---
 
@@ -84,7 +84,8 @@
 
 目前的 north star 類型包括：
 
-- `Kimi K2.5` / `1.1T class MoE`
+- `Kimi K2.6` / `1T class MoE`
+- `GLM 5.1` / `MLA + DSA MoE`
 - `DeepSeek-V3` 類大型 expert model
 
 `Mixtral` 類模型仍然有價值，但主要定位會是：
@@ -146,9 +147,18 @@
   - sparse retrieval
   - async prefetch
 
-### 4. 上層借骨架，下層保留自研自由
+### 4. 先承接 oMLX baseline，再保留自研自由
 
-本專案會借鑑 `vLLM` / `vllm-metal` 的架構與思路，但不會把核心熱路徑完全綁死在現成 runtime 上。
+本專案會先承接 `oMLX` 已經具備的 server / engine / cache 能力，包括：
+
+- OpenAI / Anthropic-compatible API
+- EnginePool / model lifecycle
+- `mlx-lm BatchGenerator` continuous batching
+- paged SSD KV cache
+- prefix sharing / Copy-on-Write
+- process-level memory enforcement
+
+但不會把核心熱路徑完全綁死在現成 runtime 上。
 
 只要某段是專案差異化核心，就應保留直接下探 Metal 的能力，例如：
 
@@ -156,19 +166,21 @@
 - PolarQuant + QJL encode/decode
 - fused attention / GEMV
 - expert gather/scatter
-- SSD -> UMA -> GPU 預取與 staging
+- SSD -> GPU-visible UMA 預取與 staging
 
 ---
 
 ## 技術主線
 
-### A. Serving / Control Plane
+### A. oMLX Serving / Control Plane
 
-- OpenAI-compatible API
+- OpenAI / Anthropic-compatible API
+- EnginePool / model lifecycle
 - scheduler
 - continuous batching
 - sequence / session manager
 - paged block abstraction
+- process memory enforcement
 
 ### B. MoE Weight Memory System
 
@@ -178,16 +190,20 @@
 - SSD cold expert tier
 - route-aware prefetch
 
-### C. KV Memory System
+### C. MLA / KV / Index Memory System
 
+- oMLX paged SSD KV cache
+- MLA latent KV block lifecycle
+- DSA index cache / sparse page map
 - KV quantization
 - KV tiered cache
 - page/block mapping
 - metadata-guided retrieval
 - async double-buffer prefetch
 
-### D. Metal-native Compute Path
+### D. MLX + Metal Compute Path
 
+- MLX / mlx-lm baseline
 - Metal kernel optimization
 - fused dequant + GEMV / attention
 - custom memory movement path
@@ -197,9 +213,9 @@
 
 ## MVP 目標
 
-第一階段 MVP 不先追求「最高吞吐」，而是先證明以下事情成立：
+第一階段 MVP 不先追求「最高吞吐」，也不直接挑戰完整 1T MoE end-to-end，而是先證明以下事情成立：
 
-> **在單台 256GB Mac 上，1.1T class MoE 模型不只可載入，而且能以實用級長 context 穩定 decode。**
+> **在現有 oMLX substrate 上，paged SSD KV / continuous batching / process memory accounting 可被穩定量測，並能逐步接上超大 MoE 的 weight index、active expert cache 與短鏈路 expert execution。**
 
 這裡的重點是：
 
@@ -209,9 +225,10 @@
 
 而是先證明：
 
-1. 大型 MoE 模型可以透過權重分層與快取策略運行
-2. 同時仍能保有實用的長 context 預算
-3. decode 不會因 SSD 換入換出而立即崩潰
+1. oMLX baseline 的 KV / batching / model lifecycle 先可觀測、可調度
+2. 大型 MoE 模型可以透過 weight index 定位 resident / cold experts
+3. 單層或短鏈路 routed expert 能透過 active expert cache / staging buffer 運行
+4. 後續再把 MLA / DSA-aware KV correctness、長 context、KV compression 與多用戶 serving 疊上去
 
 ---
 
@@ -234,7 +251,7 @@
 - [oMLX-系統架構模組圖.md](./oMLX-系統架構模組圖.md)
 - [JANG-vMLX-與-oMLX-模組圖比較.md](./tech-evals/JANG-vMLX-與-oMLX-模組圖比較.md)
 - [TECH_EVAL_TEMPLATE.md](./TECH_EVAL_TEMPLATE.md)
-- [vllm-mtp-tech-eval.md](./tech-evals/vllm-mtp-tech-eval.md)
-- [vllm-feature-fit-analysis.md](./tech-evals/vllm-feature-fit-analysis.md)
+- [vllm-mtp-tech-eval.md](./tech-evals/vllm-mtp-tech-eval.md)（歷史 / 對照參考）
+- [vllm-feature-fit-analysis.md](./tech-evals/vllm-feature-fit-analysis.md)（歷史 / 對照參考）
 
 這份 README 的角色，是提供後續所有技術評估、架構設計與實作文件的總綱。

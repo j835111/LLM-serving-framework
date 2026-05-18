@@ -4,7 +4,7 @@
 
 ## Project Goal
 
-在 Apple Silicon / MLX 上，打造一個以「記憶體頻寬與容量效率」為核心，支援超大模型、超長 context、可多用戶高併發 serving 的推理框架。
+在 Apple Silicon / MLX / oMLX 上，打造一個以「記憶體頻寬與容量效率」為核心，支援超大模型、超長 context、可多用戶高併發 serving 的推理框架。
 
 ## One-line Rule
 
@@ -12,13 +12,14 @@
 
 ## Gate Check
 
-在進入詳細評估前，先回答這 5 題：
+在進入詳細評估前，先回答這 6 題：
 
 1. 它是為 decode memory-bound 問題服務，還是只優化小模型/短上下文 benchmark？
 2. 它是否適用於 MLX / Metal / UMA / SSD 分層快取，而不只是 CUDA/HBM？
-3. 它能否接進 paged KV / batching / scheduler / prefetch / eviction 其中一段？
-4. 它是否對 122B+、長 context、多用戶場景仍有收益？
-5. 它帶來的額外 compute / latency / complexity，是否低於它省下的 bandwidth / memory？
+3. 它能否接進 oMLX 現有 API / EnginePool / BatchGenerator / paged SSD KV / ProcessMemoryEnforcer 其中一段？
+4. 它是在補 oMLX 缺口，還是在重做 oMLX 已有 baseline？
+5. 它是否對 122B+、長 context、多用戶場景仍有收益？
+6. 它帶來的額外 compute / latency / complexity，是否低於它省下的 bandwidth / memory？
 
 快速判定：
 
@@ -27,27 +28,28 @@
 
 ## Scoring Rubric
 
-每項 0-5 分，總分 30 分。
+每項 0-5 分，總分 35 分。
 
 | 維度 | 評估問題 | 分數 |
 | --- | --- | --- |
 | 容量收益 | 是否讓單機能放更大模型、更多 KV、更多併發？ | /5 |
 | 頻寬收益 | 是否減少 decode 時搬運資料量或掃描量？ | /5 |
 | Serving 整合度 | 是否能接到 batching / scheduler / block manager / prefetch？ | /5 |
+| oMLX substrate fit | 是否承接 oMLX 現有 API / EnginePool / paged SSD KV / memory enforcement，而不是重造？ | /5 |
 | Apple 適配度 | 是否善用 Metal、UMA、SSD、zero-copy、CPU/GPU 分工？ | /5 |
 | 品質風險 | 精度或生成品質損失是否可控？ | /5 |
 | 工程可行性 | 實作、維護、除錯成本是否合理？ | /5 |
 
 ## Score Guide
 
-- 24-30：優先整合
-- 18-23：值得做 PoC
-- 12-17：先追蹤，不急著投入
-- 0-11：暫不納入主線
+- 28-35：優先整合
+- 21-27：值得做 PoC
+- 14-20：先追蹤，不急著投入
+- 0-13：暫不納入主線
 
 ## Required Questions
 
-每次評估新技術，固定回答以下 8 題：
+每次評估新技術，固定回答以下 9 題：
 
 1. 它主要壓的是長度、深度、精度、存放位置、還是讀取方式？
 2. 它解的是容量瓶頸、頻寬瓶頸，還是兩者都有？
@@ -55,8 +57,9 @@
 4. 它對長 context 是否比對短 context 更有價值？
 5. 它對多用戶 serving 是否真的有幫助？
 6. 它是否需要大改模型，還是可直接套在現有模型上？
-7. 它是否適合 Apple Silicon，還是其實比較偏 NVIDIA 生態？
-8. 它最終提高的是可服務能力，還是只提高單點 benchmark？
+7. 它接到 oMLX 現有哪個模組？如果接不上，是不是應該作為 extension 而非主線？
+8. 它是否適合 Apple Silicon，還是其實比較偏 NVIDIA 生態？
+9. 它最終提高的是可服務能力，還是只提高單點 benchmark？
 
 ## Five Technical Buckets
 
@@ -122,20 +125,22 @@
 
 1. 它是否面向 decode memory-bound 問題？
 2. 它是否適用於 MLX / Metal / UMA / SSD？
-3. 它是否能接入 paged KV / batching / scheduler / prefetch / eviction？
-4. 它是否對 122B+、長 context、多用戶場景有實益？
-5. 它的額外 compute / latency / complexity 是否值得？
+3. 它是否能接入 oMLX 現有 API / EnginePool / BatchGenerator / paged SSD KV / ProcessMemoryEnforcer？
+4. 它是在補 oMLX 缺口，還是在重做 oMLX 已有 baseline？
+5. 它是否對 122B+、長 context、多用戶場景有實益？
+6. 它的額外 compute / latency / complexity 是否值得？
 
 ## 7. Scoring
 
 - 容量收益：_/5
 - 頻寬收益：_/5
 - Serving 整合度：_/5
+- oMLX substrate fit：_/5
 - Apple 適配度：_/5
 - 品質風險：_/5
 - 工程可行性：_/5
 
-- 總分：_/30
+- 總分：_/35
 
 ## 8. 結論
 
@@ -146,11 +151,12 @@
 
 ## Short Version
 
-如果只是快速判斷，可先回答這 4 句：
+如果只是快速判斷，可先回答這 5 句：
 
 1. 它幫我們省的是容量、頻寬，還是兩者？
 2. 它是否對 Apple Silicon 友善？
-3. 它能否接進 serving pipeline？
-4. 它是否真的提升大模型 + 長 context + 多用戶能力？
+3. 它能否接進 oMLX 現有 serving substrate？
+4. 它是在補缺口，還是在重做 oMLX 已有 baseline？
+5. 它是否真的提升大模型 + 長 context + 多用戶能力？
 
-如果這 4 題裡有 3 題以上答「是」，就值得至少做一個 PoC。
+如果這 5 題裡有 4 題以上答「是」，就值得至少做一個 PoC。

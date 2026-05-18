@@ -1,5 +1,7 @@
 # 技術評估：vLLM MTP（Multi-Token Prediction）
 
+> 2026-05-05 更新：此文件保留作為歷史 / 對照參考。新的整體規劃以 `oMLX` 現有 serving substrate 為主，MTP / speculative decoding 仍可作後期 decode latency accelerator 評估，但不屬於目前架構主線。
+
 ## 1. 基本資訊
 
 - 技術名稱：vLLM MTP（Multi-Token Prediction）

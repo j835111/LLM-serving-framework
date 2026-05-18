@@ -1,5 +1,7 @@
 # JANG / vLLM-metal 與 oMLX 模組圖技術比較
 
+> 2026-05-05 更新：此文件保留作為歷史對照。新的整體規劃已不再建議以 `vLLM + vllm-metal` 作 serving 骨架，而是改為承接現有 `oMLX` 的 API、EnginePool、continuous batching、paged SSD KV cache 與 process memory enforcement。`vLLM / vllm-metal` 後續只作概念與 feature 對照來源；JANG 仍可作為權重量化與 Metal kernel engineering 參考。
+
 ## 1. 比較前提
 
 `oMLX-系統架構模組圖.md` 的主線很清楚：
